@@ -228,3 +228,125 @@ eval_expr(expr(Op, Left, Right), Value) :-
     eval_expr(Left, A),
     eval_expr(Right, B),
     apply_op(Op, A, B, Value).
+
+
+% -----------------------------------------------------------------------------
+% The canonical printed form
+% -----------------------------------------------------------------------------
+
+%! precedence(+Op:atom, -Prec:integer) is semidet.
+%
+%  Prec is the binding strength of Op: 2 for * and /, 1 for + and -, so that
+%  * and / bind tighter, as the specification requires.
+%
+%  The two levels are all the rule needs. Associativity is not represented
+%  here as a separate property: the operators are all left-associative, and
+%  that is expressed by the asymmetry between the left and right tests in
+%  parens_needed/3 rather than by any data.
+precedence(plus,   1).
+precedence(minus,  1).
+precedence(times,  2).
+precedence(divide, 2).
+
+%! op_symbol(+Op:atom, -Symbol:atom) is semidet.
+%
+%  Symbol is the character Op is written with. The atoms are quoted: '+', '-',
+%  '*' and '/' are all operator atoms in Prolog and must not be written bare
+%  in an argument position.
+op_symbol(plus,   '+').
+op_symbol(minus,  '-').
+op_symbol(times,  '*').
+op_symbol(divide, '/').
+
+%! parens_needed(+Side:atom, +ParentPrec:integer, +Operand) is semidet.
+%
+%  True when Operand, appearing on Side of an operator of precedence
+%  ParentPrec, must be written in parentheses. Side is left or right.
+%
+%  This is the specification's rule, stated directly:
+%
+%    * a left operand is parenthesised only if its top operator has strictly
+%      lower precedence than its parent's;
+%    * a right operand is parenthesised if its top operator has the same or
+%      lower precedence than its parent's;
+%
+%  The asymmetry is what encodes left-associativity. 1-2-3 is the tree
+%  expr(minus, expr(minus,1,2), 3): the left operand has equal precedence, so
+%  strictly-lower is false and no parentheses appear, which is right, because
+%  reading 1-2-3 back gives that same tree. 1-(2-3) is the mirror tree, where
+%  the right operand has equal precedence, same-or-lower is true, and the
+%  parentheses are needed to stop it reading as the first tree.
+%
+%  "A single number is never in parentheses" needs no clause and no test: both
+%  clauses require an expr/3 operand, so a num/1 operand matches neither and
+%  parens_needed/3 simply fails for it.
+parens_needed(left, ParentPrec, expr(Op, _, _)) :-
+    precedence(Op, Prec),
+    Prec < ParentPrec.
+parens_needed(right, ParentPrec, expr(Op, _, _)) :-
+    precedence(Op, Prec),
+    Prec =< ParentPrec.
+
+%! operand_string(+Side:atom, +ParentPrec:integer, +Operand, -String:string)
+%!     is det.
+%
+%  String is Operand written out, in parentheses if and only if its position
+%  requires them.
+operand_string(Side, ParentPrec, Operand, String) :-
+    expr_string(Operand, Inner),
+    (   parens_needed(Side, ParentPrec, Operand)
+    ->  format(string(String), "(~w)", [Inner])
+    ;   String = Inner
+    ).
+
+%! expr_string(+Expr, -String:string) is det.
+%
+%  String is the canonical written form of Expr: an SWI-Prolog string, with no
+%  spaces, numbers in decimal, and parentheses exactly where the rule above
+%  puts them.
+%
+%  Read declaratively: "String is how Expr is written."
+%
+%  Recursive reading, and the termination argument: a leaf is written as its
+%  number. A node is written as its left operand, then its operator symbol,
+%  then its right operand, each operand written by the same rule and
+%  parenthesised according to its side and the node's precedence. Each call
+%  descends into a strictly smaller sub-tree, so it terminates.
+%
+%  The result is a string and not an atom. number_string/2 and format/3 with
+%  a string(String) sink both produce strings, and nothing here goes near
+%  atom_concat/3 or atomic_list_concat/3, which would produce an atom and fail
+%  the specification's requirement that an equation be a string.
+%
+%  This rule is injective: the specification notes that it gives every
+%  different expression tree a different string. That is what allows
+%  all_equations/2 to deduplicate with sort/2 over strings without any risk of
+%  collapsing two genuinely different trees into one answer. It is also why
+%  1+(2+3) and 1+2+3 both appear among the answers for a list that admits
+%  them: they are different trees, so they are different equations.
+%
+%  det for any well-formed Expr: the two clauses are indexed on num/1 against
+%  expr/3, and the if-then-else in operand_string/4 commits.
+expr_string(num(N), String) :-
+    number_string(N, String).
+expr_string(expr(Op, Left, Right), String) :-
+    precedence(Op, ParentPrec),
+    op_symbol(Op, Symbol),
+    operand_string(left,  ParentPrec, Left,  LeftString),
+    operand_string(right, ParentPrec, Right, RightString),
+    format(string(String), "~w~w~w", [LeftString, Symbol, RightString]).
+
+%! equation_string(+Left, +Right, -Equation:string) is det.
+%
+%  Equation is the canonical form of the equation whose sides are the
+%  expressions Left and Right: the two sides written out and joined by a
+%  single = sign, with no spaces anywhere.
+%
+%  The = sign itself needs no precedence handling. It is not an operator of
+%  the expression language, there is exactly one of it, and it sits between
+%  two complete expressions, so neither side is ever parenthesised on its
+%  account.
+equation_string(Left, Right, Equation) :-
+    expr_string(Left, LeftString),
+    expr_string(Right, RightString),
+    format(string(Equation), "~w=~w", [LeftString, RightString]).
