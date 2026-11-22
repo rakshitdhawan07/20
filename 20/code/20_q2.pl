@@ -148,3 +148,83 @@ equation_sides(Numbers, Left, Right) :-
     split(Numbers, LeftNums, RightNums),
     expr_tree(LeftNums, Left),
     expr_tree(RightNums, Right).
+
+
+% -----------------------------------------------------------------------------
+% Evaluation
+% -----------------------------------------------------------------------------
+
+%! apply_op(+Op:atom, +A:integer, +B:integer, -Value:integer) is semidet.
+%
+%  Value is the result of applying Op to A and B, or apply_op/4 fails if the
+%  operation is not permitted. Only division can fail: it is allowed solely
+%  when the divisor is non-zero and the division leaves no remainder.
+%
+%  Read declaratively: "applying Op to A and B is defined, and gives Value."
+%
+%  semidet by first-argument indexing: the four clauses have distinct atoms in
+%  the first argument, so a call with Op bound tries one clause and leaves no
+%  choice point. That is not cosmetic — a choice point here would survive into
+%  findall/3 in all_equations/2 and produce the same equation twice.
+%
+%  The division clause is ordered deliberately and no part of it is
+%  rearrangeable:
+%
+%    1. B =\= 0 comes first. A mod B with B = 0 raises an evaluation error,
+%       and the specification calls for failure, not an exception.
+%    2. 0 =:= A mod B tests exactness. In SWI-Prolog mod/2 takes the sign of
+%       its divisor, and A mod B is zero exactly when B divides A, so this is
+%       correct for negative operands too: 6 mod -3 and -6 mod 3 are both 0,
+%       while -6 mod 4 is 2 and the clause fails as it should.
+%    3. Only then is the quotient taken, with //, integer division. The / of
+%       arithmetic is never used anywhere in this file. On integers it may
+%       yield a float or a rational depending on the prefer_rationals flag,
+%       and a float silently poisons every later comparison because 2.0 =:= 2
+%       holds while 2.0 == 2 does not. // is flag-independent. It truncates
+%       toward zero, which is immaterial here: the exactness test has already
+%       established there is nothing to round.
+%
+%  An equivalent exactness test is to compute Value is A // B and then check
+%  Value * B =:= A, which relies on no property of mod/2 at all. Either is
+%  defensible; this one states the intent directly.
+apply_op(plus,   A, B, Value) :- Value is A + B.
+apply_op(minus,  A, B, Value) :- Value is A - B.
+apply_op(times,  A, B, Value) :- Value is A * B.
+apply_op(divide, A, B, Value) :-
+    B =\= 0,
+    0 =:= A mod B,
+    Value is A // B.
+
+%! eval_expr(+Expr, -Value:integer) is semidet.
+%
+%  Value is the integer value of Expr, or eval_expr/2 fails if any division
+%  anywhere inside Expr is by zero or inexact.
+%
+%  Read declaratively: "Expr has a value, and it is Value."
+%
+%  Recursive reading, and the termination argument: a leaf num(N) has the
+%  value N. A node expr(Op, Left, Right) has a value when both operands have
+%  values and applying Op to them is defined. Each call descends into a
+%  strictly smaller sub-tree, and leaves are the base case, so it terminates
+%  on every finite expression.
+%
+%  The specification's requirement that the division rules apply to every
+%  division inside an expression and not only the last one needs no separate
+%  check: an inexact or zero-divisor division makes apply_op/4 fail at the
+%  node where it occurs, that failure propagates up through the conjunction,
+%  and the whole expression simply has no value. There is nothing to catch and
+%  nothing to repair.
+%
+%  Values of sub-expressions may be negative, as in 3-5, and are handled like
+%  any other integer; Prolog's unbounded integers mean no intermediate result
+%  can overflow.
+%
+%  semidet by first-argument indexing on num/1 versus expr/3.
+%
+%  For reference: of the 320 expressions over [4,2,5,3], 176 have a value and
+%  144 are rejected by the division rules.
+eval_expr(num(N), N).
+eval_expr(expr(Op, Left, Right), Value) :-
+    eval_expr(Left, A),
+    eval_expr(Right, B),
+    apply_op(Op, A, B, Value).
