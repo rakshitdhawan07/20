@@ -33,3 +33,12 @@ a problem) is not engaged by this prompt.
 **Unit of work:** `tests/run_tests.sh`. Setup/infrastructure, not a problem solution.
 
 ---
+
+## Prompt 4 — README
+
+> Write `README.md`. It needs: how to set the group ID, the repository layout, the exact commands the grader will use for each of the four files, how to run the tests, and the SWI-Prolog and Racket versions everything was verified against.
+> Keep it short enough that someone cloning this can get to a passing test run without reading anything else.
+
+**Unit of work:** `README.md`. Setup/documentation, not a problem solution.
+
+---
