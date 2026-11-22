@@ -179,3 +179,30 @@
 ;; treatment anywhere in this file.
 (define (insert-if-short x lst n)
   ((make-inserter x (lambda (len) (< len n))) lst))
+
+
+;; print-insert-result : -> prints one line
+;;
+;; S2.a. Takes no arguments. Reads x, then lst, then n from standard input
+;; with read, applies insert-if-short to them, and prints the resulting list
+;; with display followed by a newline. It prints no prompt and no other text.
+;;
+;; The three reads are sequenced with let* rather than let, and that is not a
+;; stylistic preference. read is a side-effecting operation: each call consumes
+;; the next datum from the input, so the three calls must happen in the order
+;; the specification gives, x then lst then n. let* evaluates its bindings in
+;; order by definition, so the sequencing is guaranteed by the form itself. A
+;; plain let leaves the order of its right-hand sides unspecified in Scheme,
+;; and an implementation free to evaluate them in another order would silently
+;; read the three values into the wrong variables.
+;;
+;; Each value is read as a datum, not as text: read returns the number 42 for
+;; 42 and the nested list ((1 2) (3 4 5) (6) ()) for that input, already
+;; structured. Nothing here converts between strings and data, which is as
+;; well, since strings are not available.
+(define (print-insert-result)
+  (let* ((x (read))
+         (lst (read))
+         (n (read)))
+    (display (insert-if-short x lst n))
+    (newline)))
