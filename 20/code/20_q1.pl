@@ -219,3 +219,49 @@ clues_hold([N|Ns], Solution) :-
 solve(Solution) :-
     candidate(Solution),
     clues_hold([1, 2, 3, 4, 5, 6, 7, 8], Solution).
+
+
+% -----------------------------------------------------------------------------
+% P1.a — printing one solution
+% -----------------------------------------------------------------------------
+
+%! print_friend(+Friend:compound) is det.
+%
+%  Prints one p/4 term as a single line in the layout the assignment
+%  specifies:
+%
+%      Alex = [research, python, AI]
+%
+%  The three attributes are formatted as three separate ~w fields rather than
+%  by handing the list [Dept, Lang, Project] to a single ~w. That is not a
+%  stylistic choice: write/1 of a list prints [research,python,AI] with no
+%  space after the commas, which does not match the required layout.
+%
+%  ~w is also required over ~q and ~p. ~w writes without quoting, so the
+%  atoms 'c++' and 'AI' print as c++ and AI; ~q and ~p would print them as
+%  'c++' and 'AI', quotes included, and the output would not match.
+print_friend(p(Name, Dept, Lang, Project)) :-
+    format("~w = [~w, ~w, ~w]~n", [Name, Dept, Lang, Project]).
+
+%! main is det.
+%
+%  Prints one solution of clues 1 to 8, as four lines in the order Alex, Ben,
+%  Carla, Dana.
+%
+%  Read declaratively: "main prints a single answer to the puzzle as stated."
+%
+%  The name order needs no sorting: candidate/1 lays the attribute
+%  permutations against names/1, so every Solution already lists the friends
+%  in that order, and printing the list in order prints the names in order.
+%
+%  once/1 makes main det. solve/1 is nondet because the eight stated clues
+%  admit more than one assignment, and the task asks for one solution, so
+%  committing to the first is correct. Note that main/0 answers P1.a and so
+%  stays on clues 1 to 8: the ninth clue of P1.c constrains count_solutions/2,
+%  not this predicate.
+%
+%  No halt/0 here and no initialization directive anywhere in the file: the
+%  grader supplies -g main -t halt itself.
+main :-
+    once(solve(Solution)),
+    maplist(print_friend, Solution).
