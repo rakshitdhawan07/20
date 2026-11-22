@@ -265,3 +265,42 @@ print_friend(p(Name, Dept, Lang, Project)) :-
 main :-
     once(solve(Solution)),
     maplist(print_friend, Solution).
+
+
+% -----------------------------------------------------------------------------
+% P1.b — counting solutions under a chosen subset of the clues
+% -----------------------------------------------------------------------------
+
+%! count_solutions(+Active:list, -N:integer) is det.
+%
+%  N is the number of complete assignments that satisfy every clue whose
+%  number appears in Active. Clue numbers absent from Active are ignored
+%  outright: they are not required and not negated.
+%
+%  Read declaratively: "N is how many ways the friends can be arranged so
+%  that exactly the clues in Active come out true."
+%
+%  Examples of the intended reading:
+%      count_solutions([], N)                  gives N = 13824, every
+%                                              candidate, since no clue is
+%                                              required of any of them
+%      count_solutions([1,2,3,4,5,6,7,8], N)   gives the number of solutions
+%                                              of the puzzle as stated
+%
+%  aggregate_all/3 with the count template counts the successes of the goal,
+%  which is the number of satisfying assignments only because the two parts
+%  of that goal were built to make it so: candidate/1 yields each assignment
+%  exactly once, and clues_hold/2 is semidet, so no assignment can succeed
+%  twice and be counted twice. The equivalent
+%
+%      findall(S, (candidate(S), clues_hold(Active, S)), L), length(L, N)
+%
+%  gives the same answer; aggregate_all/3 is preferred here only because it
+%  does not build a list of up to 13824 solutions just to measure it.
+%
+%  det: aggregate_all/3 with count always succeeds exactly once, giving 0 for
+%  a goal with no solutions rather than failing.
+count_solutions(Active, N) :-
+    aggregate_all(count, ( candidate(Solution),
+                           clues_hold(Active, Solution)
+                         ), N).
