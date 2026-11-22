@@ -104,52 +104,78 @@
   (or (null? x) (pair? x)))
 
 
+;; make-inserter : atom (integer -> boolean) -> (list -> list)
+;;
+;; S2.c. Returns a function of one argument, a list, which inserts x at the
+;; front of every list, at every level of nesting, whose original length
+;; satisfies len-ok?. len-ok? is a function taking one number.
+;;
+;; The returned function is bound by letrec so that it can call itself on
+;; sublists. x and len-ok? are captured once, in this closure, instead of
+;; being passed down through every recursive call: the inner recursion carries
+;; only the list it is working on, and the two things that stay fixed for the
+;; whole traversal are held by the closure. That is the point of the function
+;; being higher-order rather than merely taking an extra argument.
+;;
+;; Recursive reading of the returned function: its result for a list is that
+;; list with every element that is itself a list replaced by its own result,
+;; atoms left alone, and then x consed on the front if and only if len-ok? is
+;; true of the list's own length.
+;;
+;; Termination: each inner call is made on an element of its argument, so
+;; nesting depth strictly decreases and atoms are the base case.
+;;
+;; Three points of the specification are settled by this structure:
+;;
+;;   * Lengths are measured on the original list. my-length is applied to the
+;;     argument lst, and nothing is ever mutated — the insertion builds a new
+;;     list. Binding the length first in the let* makes the order of events
+;;     plain to a reader, but it is the absence of mutation that makes it
+;;     correct, not the ordering.
+;;
+;;   * The top-level list is treated like every other list, because it is just
+;;     the list the outermost call is looking at. No separate case is needed,
+;;     and an empty top-level list behaves like any other empty list.
+;;
+;;   * Whether anything is inserted at all is entirely len-ok?'s business.
+;;     That is what makes this more general than insert-if-short: a predicate
+;;     such as (lambda (len) (> len 5)) or (lambda (len) (= len 0)) works
+;;     unchanged.
+;;
+;; my-length is called exactly once per list, in the let* binding, and never
+;; inside the my-map. That is what keeps the traversal linear: each list is
+;; walked once to measure it and once to rebuild it. Measuring inside the
+;; per-element work would make a 10,000-element list quadratic and the hidden
+;; test would time out.
+(define (make-inserter x len-ok?)
+  (letrec ((insert
+            (lambda (lst)
+              (let* ((len (my-length lst))
+                     (mapped (my-map (lambda (element)
+                                       (if (my-list? element)
+                                           (insert element)
+                                           element))
+                                     lst)))
+                (if (len-ok? len)
+                    (cons x mapped)
+                    mapped)))))
+    insert))
+
+
 ;; insert-if-short : atom list integer -> list
 ;;
 ;; lst with x inserted at the front of every list, at every level of nesting,
 ;; whose original length is less than n.
 ;;
-;; Recursive reading: the result for a list is that list with each of its
-;; elements replaced by the result for that element if the element is itself a
-;; list, or left alone if it is an atom, and then x consed on the front if and
-;; only if the list's own length is less than n.
+;; This is the single definition of insert-if-short in the file, as S2.c
+;; requires: the direct recursive version written for S2.b has been removed.
+;; All of the work is done by make-inserter, and the only thing specific to
+;; this function is the predicate — "shorter than n" — which is supplied as a
+;; one-argument function of the length.
 ;;
-;; Termination: every recursive call is made on an element of its argument, so
-;; the nesting depth strictly decreases and atoms are the base case.
-;;
-;; Three points of the specification are settled by the structure here:
-;;
-;;   * Lengths are measured on the original list. my-length is applied to lst,
-;;     the argument, and lst is never modified — Scheme lists are immutable
-;;     and nothing here mutates anything. The insertion is built into a new
-;;     list. Computing the length in the first binding of the let* makes the
-;;     order of events plain to a reader, but it is the absence of mutation
-;;     that makes it correct, not the ordering.
-;;
-;;   * The top-level list is treated like every other list. It is the list
-;;     this very call is looking at, so the final test applies to it exactly
-;;     as it applies to any sublist. No separate case is needed, and an empty
-;;     top-level list behaves like any other empty list.
-;;
-;;   * n = 0 inserts nothing anywhere, because no length is less than 0 — not
-;;     even the length of '(), which is 0. This is the case that catches an
-;;     implementation that special-cases the empty list.
-;;
-;; my-length is called exactly once per list, in the let* binding, and never
-;; inside the my-map. That is what keeps the whole traversal linear: each list
-;; is walked once to measure it and once to rebuild it. Measuring inside the
-;; per-element work would make a 10,000-element list quadratic and the hidden
-;; test would time out.
-;;
-;; S2.c replaces this definition with one built on make-inserter. The final
-;; file keeps only that one.
+;; n = 0 inserts nothing anywhere, because no length is less than 0, not even
+;; the length of '(), which is 0. That falls out of the predicate rather than
+;; being special-cased, which is why the empty list needs no separate
+;; treatment anywhere in this file.
 (define (insert-if-short x lst n)
-  (let* ((len (my-length lst))
-         (mapped (my-map (lambda (element)
-                           (if (my-list? element)
-                               (insert-if-short x element n)
-                               element))
-                         lst)))
-    (if (< len n)
-        (cons x mapped)
-        mapped)))
+  ((make-inserter x (lambda (len) (< len n))) lst))
