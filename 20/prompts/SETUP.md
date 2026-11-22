@@ -17,3 +17,11 @@ Prompts recorded word for word, in the order they were given.
 a problem) is not engaged by this prompt.
 
 ---
+
+## Prompt 2 — scheme-dev skill
+
+> Now scheme-dev
+
+**Unit of work:** `skills/scheme-dev/SKILL.md`. Setup, not a problem solution.
+
+---

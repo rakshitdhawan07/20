@@ -3,3 +3,4 @@ compiled/
 *.dep
 *~
 .DS_Store
+run_q*.rkt
