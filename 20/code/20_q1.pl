@@ -113,3 +113,109 @@ clue(7, Solution) :-
 clue(8, Solution) :-
     memberchk(p(_, research, Lang, data), Solution),
     Lang \== javascript.
+
+
+% -----------------------------------------------------------------------------
+% The attribute domains
+% -----------------------------------------------------------------------------
+
+%! names(-Names:list) is det.
+%
+%  The four friends, in the order every Solution uses and every answer is
+%  printed in.
+names(['Alex', 'Ben', 'Carla', 'Dana']).
+
+%! depts(-Depts:list) is det.
+depts([research, development, design, testing]).
+
+%! langs(-Langs:list) is det.
+langs([python, java, 'c++', javascript]).
+
+%! projects(-Projects:list) is det.
+projects(['AI', web, embedded, data]).
+
+
+% -----------------------------------------------------------------------------
+% Candidate generation
+% -----------------------------------------------------------------------------
+
+%! zip_friends(+Names:list, +Depts:list, +Langs:list, +Projects:list,
+%!             -Solution:list) is det.
+%
+%  Pairs the four lists element by element into Solution, so that the Nth
+%  friend gets the Nth department, the Nth language and the Nth project.
+%
+%  Recursive reading: zipping four empty lists gives the empty solution;
+%  zipping four non-empty lists gives p/4 built from the four heads, followed
+%  by the zip of the four tails. Every call removes one element from each
+%  list, so it terminates, and it is det because the four lists have equal
+%  length by construction.
+zip_friends([], [], [], [], []).
+zip_friends([N|Ns], [D|Ds], [L|Ls], [P|Ps], [p(N, D, L, P)|Rest]) :-
+    zip_friends(Ns, Ds, Ls, Ps, Rest).
+
+%! candidate(-Solution:list) is nondet.
+%
+%  Enumerates every fully filled-in assignment: one permutation of the
+%  departments, one of the languages and one of the projects, laid against
+%  the fixed name order. Each attribute's four values are therefore used
+%  exactly once, which is the puzzle's standing invariant and the reason a
+%  single memberchk/2 in clue/2 is enough to identify "the friend the clue is
+%  about".
+%
+%  Read declaratively: "Solution is a complete, consistent assignment of the
+%  three attributes to the four friends."
+%
+%  There are 4! x 4! x 4! = 13824 candidates, and permutation/2 yields each
+%  permutation of a list of distinct elements exactly once, so candidate/1
+%  yields each assignment exactly once and never twice. That matters: a
+%  generator that repeated a candidate would inflate count_solutions/2 just as
+%  surely as a nondet clue would.
+%
+%  Generating a complete assignment first and only then testing the clues is
+%  deliberate rather than merely simple. The specification requires clue/2 to
+%  succeed exactly when a clue holds of a fully filled-in Solution, so clue/2
+%  must stay a pure test and cannot double as a constraint that prunes during
+%  search. At 13824 candidates the cost of not pruning is irrelevant.
+candidate(Solution) :-
+    names(Names),
+    depts(Depts),
+    langs(Langs),
+    projects(Projects),
+    permutation(Depts, DeptPerm),
+    permutation(Langs, LangPerm),
+    permutation(Projects, ProjectPerm),
+    zip_friends(Names, DeptPerm, LangPerm, ProjectPerm, Solution).
+
+
+% -----------------------------------------------------------------------------
+% Solving
+% -----------------------------------------------------------------------------
+
+%! clues_hold(+Active:list, +Solution:list) is semidet.
+%
+%  True when every clue number in Active holds of Solution. Solution must be
+%  ground. Clue numbers not in Active are ignored entirely, which is what
+%  count_solutions/2 needs in the next unit.
+%
+%  Recursive reading: the empty list of clues holds of any solution; a
+%  non-empty list holds when its first clue holds and the rest hold. The list
+%  shrinks by one on every call, so it terminates. Each clue/2 call is
+%  semidet, so clues_hold/2 is semidet and leaves no choice point for
+%  findall/3 to turn into a duplicate.
+clues_hold([], _Solution).
+clues_hold([N|Ns], Solution) :-
+    clue(N, Solution),
+    clues_hold(Ns, Solution).
+
+%! solve(-Solution:list) is nondet.
+%
+%  Solution is a complete assignment satisfying all of clues 1 to 8.
+%
+%  Read declaratively: "Solution is an answer to the puzzle as stated."
+%  Nondet because the eight stated clues do not pin the puzzle down to one
+%  assignment; enumerating solve/1 is how P1.b counts them and how P1.c
+%  checks that a ninth clue is true of exactly one of them.
+solve(Solution) :-
+    candidate(Solution),
+    clues_hold([1, 2, 3, 4, 5, 6, 7, 8], Solution).
