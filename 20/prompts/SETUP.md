@@ -42,3 +42,11 @@ a problem) is not engaged by this prompt.
 **Unit of work:** `README.md`. Setup/documentation, not a problem solution.
 
 ---
+
+## Prompt 5 — compile the P1 prompt log
+
+> Can you give the P1.md
+
+**Unit of work:** `prompts/P1.md`. Housekeeping, not a problem solution.
+
+---

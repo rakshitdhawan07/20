@@ -115,6 +115,18 @@ clue(8, Solution) :-
     Lang \== javascript.
 
 
+% CLUE 9: The friend who works in the testing department prefers the AI
+%         project.
+%         Added for P1.c. It names no friend and refers to them only through
+%         attribute values, the way clue 5 does. It is true in exactly one of
+%         the three solutions of clues 1 to 8 and false in the other two,
+%         where the friend in testing prefers the embedded project instead.
+%         See P1_REPORT.md for why this is the only solution a clue of this
+%         kind can single out.
+clue(9, Solution) :-
+    memberchk(p(_, testing, _, 'AI'), Solution).
+
+
 % -----------------------------------------------------------------------------
 % The attribute domains
 % -----------------------------------------------------------------------------
