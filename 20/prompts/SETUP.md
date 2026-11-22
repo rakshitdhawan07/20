@@ -25,3 +25,11 @@ a problem) is not engaged by this prompt.
 **Unit of work:** `skills/scheme-dev/SKILL.md`. Setup, not a problem solution.
 
 ---
+
+## Prompt 3 — test runner
+
+> Write `tests/run_tests.sh`, one script that runs everything.
+
+**Unit of work:** `tests/run_tests.sh`. Setup/infrastructure, not a problem solution.
+
+---
