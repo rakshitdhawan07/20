@@ -46,7 +46,11 @@
 %  passes an unbound field, where \+ Dept = research would fail instead of
 %  raising, silently discarding valid assignments.
 %
-%  Clues 5 to 8 are added in the next unit of work.
+%  Where a clue offers a choice of values ("research or testing", clue 7) the
+%  disjunction is written as a memberchk/2 over the permitted values rather
+%  than with ;/2. Both are correct, but ;/2 leaves a choice point behind on
+%  the branch that succeeds, and keeping every clause semidet is what makes
+%  count_solutions/2 safe from double counting.
 
 % CLUE 1: The friend who prefers the AI project does not work in research
 %         and is not Dana.
@@ -79,3 +83,33 @@ clue(3, Solution) :-
 clue(4, Solution) :-
     memberchk(p('Ben', Dept, _, web), Solution),
     Dept \== testing.
+
+% CLUE 5: The friend whose favorite language is Java works in the design
+%         department. Stated positively and about two attributes of the same
+%         friend, so one lookup decides it: java is held by exactly one
+%         friend, and the clue holds precisely when that friend's department
+%         is design.
+clue(5, Solution) :-
+    memberchk(p(_, design, java, _), Solution).
+
+% CLUE 6: Carla's project preference is not embedded, and her department is
+%         not development.
+clue(6, Solution) :-
+    memberchk(p('Carla', Dept, _, Project), Solution),
+    Project \== embedded,
+    Dept \== development.
+
+% CLUE 7: Dana's favorite language is not Java, and she works in research or
+%         testing.
+clue(7, Solution) :-
+    memberchk(p('Dana', Dept, Lang, _), Solution),
+    Lang \== java,
+    memberchk(Dept, [research, testing]).
+
+% CLUE 8: The friend who prefers data projects works in research and does not
+%         use JavaScript. The research half is folded into the lookup pattern,
+%         so if the data friend is in any other department nothing matches and
+%         the clue fails before the language is examined.
+clue(8, Solution) :-
+    memberchk(p(_, research, Lang, data), Solution),
+    Lang \== javascript.
